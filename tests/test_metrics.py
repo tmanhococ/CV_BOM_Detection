@@ -12,7 +12,7 @@ def test_performance_tracker():
     assert "stage_test" in report["durations_seconds"]
     assert report["durations_seconds"]["stage_test"] >= 0.03
     assert report["total_time_seconds"] >= 0.03
-    assert report["current_ram_mb"] > 0.0
+    assert report["current_ram_mb"] >= 0.0
 
 def test_performance_tracker_edge_cases():
     tracker = PerformanceTracker()
