@@ -3,6 +3,8 @@ import os
 # Path resolution dòng đầu tiên để kích hoạt import tuyệt đối src.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from typing import Union, Dict, Any, List
+
 import gradio as gr
 import numpy as np
 import cv2
@@ -23,7 +25,7 @@ def draw_visualizations(drawing: np.ndarray, results: list) -> np.ndarray:
         vis = drawing.copy()
         
     for r in results:
-        x, y, w, h = r["bbox"]
+        x, y, w, h = map(int, r["bbox"])
         score = r["confidence"]
         rot = r.get("rotation", "R0")
         
@@ -112,21 +114,21 @@ def make_html_performance_dashboard(report: dict) -> str:
     return html
 
 def run_app_inference(
-    pattern_path,
-    drawing_path,
-    mode,
-    conf_thresh,
-    v1_thresh,
-    v2_thresh,
-    alpha,
-    iou_thresh,
-    enable_refine,
-    var_std,
-    margin,
-    extractor_choice
-):
+    pattern_path: Union[str, None],
+    drawing_path: Union[str, None],
+    mode: str,
+    conf_thresh: float,
+    v1_thresh: float,
+    v2_thresh: float,
+    alpha: float,
+    iou_thresh: float,
+    enable_refine: bool,
+    var_std: float,
+    margin: float,
+    extractor_choice: str
+) -> tuple[Union[np.ndarray, None], Union[List[Dict[str, Any]], Dict[str, Any]], str]:
     if not pattern_path or not drawing_path:
-        return None, "Vui lòng upload đầy đủ ảnh mẫu (Pattern) và bản vẽ (Drawing).", ""
+        return None, {"error": "Vui lòng upload đầy đủ ảnh mẫu (Pattern) và bản vẽ (Drawing)."}, ""
         
     try:
         pattern = load_and_normalize_image(pattern_path)

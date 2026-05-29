@@ -56,7 +56,9 @@ def test_run_app_inference_missing_paths():
         extractor_choice="auto"
     )
     assert vis is None
-    assert "Vui lòng upload đầy đủ ảnh mẫu" in json_out
+    assert isinstance(json_out, dict)
+    assert "error" in json_out
+    assert "Vui lòng upload đầy đủ ảnh mẫu" in json_out["error"]
     assert dashboard_html == ""
 
 def test_run_app_inference_valid(tmp_path, dummy_pattern, dummy_grayscale_drawing):
