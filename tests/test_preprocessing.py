@@ -62,3 +62,20 @@ def test_preprocess_for_matching():
     # Kiểm tra method không hợp lệ -> Trả lại raw image silently
     raw = preprocess_for_matching(img, method="invalid_method")
     assert np.array_equal(raw, img)
+
+def test_preprocess_for_matching_multichannel():
+    # Test BGR image
+    img_bgr = np.ones((50, 50, 3), dtype=np.uint8) * 255
+    img_bgr[10:40, 20:30, :] = 0
+    edges_bgr = preprocess_for_matching(img_bgr, method="dilated_edge")
+    assert edges_bgr.max() > 0
+    assert edges_bgr.ndim == 2
+    assert edges_bgr.shape == (50, 50)
+    
+    # Test RGBA image
+    img_rgba = np.ones((50, 50, 4), dtype=np.uint8) * 255
+    img_rgba[10:40, 20:30, :3] = 0 # keep alpha channel 255
+    edges_rgba = preprocess_for_matching(img_rgba, method="dilated_edge")
+    assert edges_rgba.max() > 0
+    assert edges_rgba.ndim == 2
+    assert edges_rgba.shape == (50, 50)

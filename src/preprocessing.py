@@ -1,21 +1,18 @@
 import cv2
 import numpy as np
+from typing import Tuple
 
 def synchronize_polarity(
     drawing: np.ndarray,
     template: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Đồng bộ hóa độ phân cực màu (nền trắng nét đen).
+    Đồng bộ hóa độ phân cực màu đảm bảo cả hai đều nền sáng nét tối (nền trắng nét đen).
     """
-    mean_d = drawing.mean()
-    mean_t = template.mean()
-
-    if mean_d < 128 and mean_t >= 128:
+    if drawing.mean() < 128:
         drawing = cv2.bitwise_not(drawing)
-    elif mean_d >= 128 and mean_t < 128:
+    if template.mean() < 128:
         template = cv2.bitwise_not(template)
-
     return drawing, template
 
 def preprocess_for_matching(
@@ -25,6 +22,12 @@ def preprocess_for_matching(
     """
     Tạo bản đồ cạnh giãn nở (Dilated Edge Map) tăng khả năng khớp NCC.
     """
+    if img.ndim == 3:
+        if img.shape[2] == 4:
+            img = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+        else:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
     if method == "dilated_edge":
         edges = cv2.Canny(img, threshold1=30, threshold2=100)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -42,14 +45,14 @@ def is_informative_region(
     """
     if img_crop is None or img_crop.size == 0:
         return False
-    std = float(np.std(img_crop.astype(np.float32)))
+    std = float(np.std(img_crop))
     return std >= std_threshold
 
 def filter_informative_proposals(
-    proposals: list,
+    proposals: list[tuple[int, int, int, int, float, float]],
     drawing: np.ndarray,
     std_threshold: float = 5.0,
-) -> list:
+) -> list[tuple[int, int, int, int, float, float]]:
     """
     Lọc các proposals thô của V1, loại bỏ các đề xuất rơi vào vùng trắng.
     """
