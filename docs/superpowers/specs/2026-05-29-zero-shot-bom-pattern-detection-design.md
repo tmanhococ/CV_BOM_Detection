@@ -1,7 +1,7 @@
 # Tài liệu Thiết kế: Zero-Shot BOM Pattern Detection System
 ### Pipeline Hợp nhất 3 Chế độ (V1 Baseline, V2 Deep Learning, V3 Hybrid)
 **Ngày thiết kế:** 2026-05-29
-**Trạng thái:** Bản thiết kế chi tiết đã được duyệt (Approved)
+**Trạng thái:** Bản thiết kế cập nhật (Bổ sung Metrics, Evaluation và Error Handling/Fallback)
 
 ---
 
@@ -9,10 +9,10 @@
 
 Mục tiêu của hệ thống là tự động phát hiện các ký hiệu kỹ thuật (pattern) trên các bản vẽ kỹ thuật CAD/BOM có độ phân giải cao ($\ge 1535 \times 1024$ px) ở chế độ **Zero-Shot** (không cần huấn luyện lại khi người dùng thay đổi mẫu cần tìm).
 
-Hệ thống được thiết kế theo mô hình kiến trúc linh hoạt hỗ trợ 3 chế độ hoạt động chính:
-1. **Mode 1 (Baseline - V1):** Khớp mẫu NCC đa tỷ lệ trên bản đồ cạnh giãn nở (Dilated Edge Map). Có tốc độ nhanh nhất trên xử lý ảnh cổ điển.
-2. **Mode 2 (Deep Learning - V2 Standalone):** Trượt cửa sổ toàn ảnh, trích xuất đặc trưng sâu bằng CNN ở các tầng nông (ResNet18 hoặc DINOv2) và đo Cosine Similarity. Ưu tiên độ chính xác ngữ nghĩa sâu, chấp nhận tốc độ chậm khi chạy đơn lẻ.
-3. **Mode 3 (Hybrid - V3):** Giải pháp tối ưu phối hợp V1 để đề xuất ứng viên nhanh, lọc vùng trắng tinh (Variance Filter), sử dụng CNN Batch Processing để đối sánh đặc trưng sâu của các ứng viên và lọc Soft-NMS.
+Hệ thống hỗ trợ 3 chế độ hoạt động chính:
+1. **Mode 1 (Baseline - V1):** Khớp mẫu NCC đa tỷ lệ trên bản đồ cạnh giãn nở (Dilated Edge Map).
+2. **Mode 2 (Deep Learning - V2 Standalone):** Trượt cửa sổ toàn ảnh, trích xuất đặc trưng sâu và tính Cosine Similarity.
+3. **Mode 3 (Hybrid - V3):** V1 sinh đề xuất $\rightarrow$ Lọc vùng trống $\rightarrow$ CNN đối sánh đặc trưng sâu theo lô $\rightarrow$ Soft-NMS.
 
 ---
 
@@ -24,173 +24,257 @@ Mã nguồn của hệ thống được tổ chức hoàn toàn trong thư mục
 CV_BOM_Detection/
 ├── src/
 │   ├── thread_config.py      # Cấu hình luồng tối ưu tránh tranh chấp CPU
-│   ├── io_validation.py      # Đọc ghi ảnh, phân tích kênh màu & xác thực ràng buộc tương đối
+│   ├── io_validation.py      # Đọc ghi ảnh, phân tích kênh màu & xác thực ràng buộc
 │   ├── preprocessing.py      # Tiền xử lý ảnh toán học (Edge Map, Polarity, Variance)
 │   ├── features.py           # Extractor học sâu dạng Singleton (ResNet18 / DINOv2)
 │   ├── engines.py            # Chức năng lõi (NCC, Sliding Window V2, Soft-NMS, Refinement)
-│   ├── detector.py           # Lớp PatternDetector chính (Orchestrator)
-│   └── app.py                # Giao diện Gradio Web UI điều khiển 3 chế độ chạy
+│   ├── metrics.py            # [NEW] Bộ đo đạc hiệu năng (Thời gian từng bước, RAM, IoU, Score)
+│   ├── exceptions.py         # [NEW] Khai báo ngoại lệ tùy chỉnh & Cơ chế xử lý lỗi trung tâm
+│   ├── detector.py           # Lớp PatternDetector chính (Orchestrator tích hợp Metrics & Exception)
+│   └── app.py                # Giao diện Gradio Web UI có bảng điều khiển thống kê (Performance Dashboard)
 ├── tests/
 │   ├── conftest.py           # Khởi tạo mock data phục vụ test
-│   ├── test_io_validation.py # Test đơn vị bộ gác cổng I/O & Validation
-│   ├── test_preprocessing.py # Test đơn vị các hàm xử lý ảnh
-│   ├── test_engines.py        # Test đơn vị các giải thuật tìm kiếm & NMS
+│   ├── test_io_validation.py # Test bộ gác cổng I/O & Validation
+│   ├── test_preprocessing.py # Test các hàm xử lý ảnh
+│   ├── test_engines.py        # Test các giải thuật tìm kiếm & NMS
+│   ├── test_metrics.py        # [NEW] Test bộ ghi nhận metric và tính IoU
 │   └── test_detector.py       # Test tích hợp PatternDetector và đo hiệu năng
 └── requirements.txt
 ```
 
 ---
 
-## 3. Thiết kế Chi tiết các Module
+## 3. Thiết kế Chi tiết các Module mới (Metrics & Exceptions)
 
-### 3.1. [src/thread_config.py](file:///d:/CV_BOM_Detection/src/thread_config.py)
-* **Chức năng:** Cấu hình chủ động số lượng luồng tính toán tối đa cho các thư viện nền tảng (OpenCV và PyTorch) trước khi bất kỳ luồng tính toán nào được khởi chạy.
-* **API:**
+### 3.1. [src/metrics.py](file:///d:/CV_BOM_Detection/src/metrics.py)
+* **Chức năng:** Theo dõi thời gian thực thi của từng bước nhỏ trong pipeline xử lý, đo lượng RAM tiêu thụ biến động bằng `psutil`, đo độ tương đồng vị trí (IoU) khi có nhãn kiểm thử (ground truth), và xuất báo cáo thống kê hiệu năng.
+* **Cấu trúc lớp `PerformanceTracker`:**
   ```python
-  def configure_threads_for_inference(num_threads: int = 2) -> None:
-      """Giới hạn số luồng của OpenMP/MKL tránh tranh chấp gây nghẽn CPU."""
+  import time
+  import psutil
+  import os
+  from typing import Dict, Any, List
+
+  class PerformanceTracker:
+      """Bộ ghi nhận metric thời gian chạy và bộ nhớ RAM."""
+      def __init__(self) -> None:
+          self.process = psutil.Process(os.getpid())
+          self.start_times: Dict[str, float] = {}
+          self.durations: Dict[str, float] = {}
+          self.initial_memory = self.process.memory_info().rss / (1024 * 1024) # MB
+
+      def start_stage(self, name: str) -> None:
+          """Bắt đầu đo thời gian cho một công đoạn."""
+          self.start_times[name] = time.perf_counter()
+
+      def end_stage(self, name: str) -> None:
+          """Kết thúc đo thời gian và tính toán thời lượng chạy."""
+          if name in self.start_times:
+              self.durations[name] = time.perf_counter() - self.start_times[name]
+
+      def get_current_memory_usage(self) -> float:
+          """Trả về lượng RAM hiện tại (MB)."""
+          return self.process.memory_info().rss / (1024 * 1024)
+
+      def get_memory_delta(self) -> float:
+          """Tính toán độ chênh lệch RAM tiêu thụ từ lúc khởi tạo."""
+          return self.get_current_memory_usage() - self.initial_memory
+
+      def get_report(self) -> Dict[str, Any]:
+          """Trả về báo cáo hiệu năng đầy đủ."""
+          return {
+              "durations_seconds": {k: round(v, 4) for k, v in self.durations.items()},
+              "total_time_seconds": round(sum(self.durations.values()), 4),
+              "current_ram_mb": round(self.get_current_memory_usage(), 2),
+              "ram_delta_mb": round(self.get_memory_delta(), 2)
+          }
   ```
 
-### 3.2. [src/io_validation.py](file:///d:/CV_BOM_Detection/src/io_validation.py)
-* **Chức năng:** "Người gác cổng" chịu trách nhiệm đọc dữ liệu ảnh, xác thực mảng dữ liệu điểm ảnh hợp lệ, phân loại và bóc tách cấu trúc kênh màu đầu vào, kiểm tra ràng buộc tương đối.
-* **API:**
+* **Thuật toán tính IoU (Intersection over Union) phục vụ đánh giá (Evaluation):**
   ```python
-  def load_and_validate_input(source: Union[str, np.ndarray]) -> Tuple[np.ndarray, int, str]:
+  def calculate_iou(box_a: tuple, box_b: tuple) -> float:
       """
-      Đọc ảnh và phân loại kênh màu.
-      Trả về: (ảnh NumPy, số kênh màu [1, 3, 4], loại ảnh ['grayscale', 'rgb', 'rgba']).
+      Tính chỉ số chồng lấp IoU giữa 2 BBox dạng (x, y, w, h).
+      Sử dụng để đánh giá chất lượng mô hình đối chiếu với Ground Truth.
       """
+      ax, ay, aw, ah = box_a
+      bx, by, bw, bh = box_b
 
-  def validate_size_compatibility(drawing: np.ndarray, template: np.ndarray) -> None:
-      """Đảm bảo kích thước tuyệt đối của mẫu nhỏ hơn kích thước bản vẽ."""
+      inter_x1 = max(ax, bx)
+      inter_y1 = max(ay, by)
+      inter_x2 = min(ax + aw, bx + bw)
+      inter_y2 = min(ay + ah, by + bh)
+
+      if inter_x2 <= inter_x1 or inter_y2 <= inter_y1:
+          return 0.0
+
+      inter_area = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
+      union_area = (aw * ah) + (bw * bh) - inter_area
+      return inter_area / union_area if union_area > 0 else 0.0
   ```
-
-### 3.3. [src/preprocessing.py](file:///d:/CV_BOM_Detection/src/preprocessing.py)
-* **Chức năng:** Thực hiện các phép biến đổi toán học trên ma trận pixel đã hợp lệ.
-* **API:**
-  ```python
-  def preprocess_for_matching(img: np.ndarray, method: str = "dilated_edge") -> np.ndarray:
-      """
-      Nếu method="dilated_edge": Canny -> Dilation (kernel 5x5) -> Gaussian Blur (3x3).
-      Nếu method="raw": Trả về ảnh gốc (dành cho CNN).
-      """
-
-  def synchronize_polarity(drawing: np.ndarray, template: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-      """Đồng bộ hóa màu sắc (nền trắng nét đen) giữa Drawing và Template dựa trên mean pixel."""
-
-  def is_informative_region(img_crop: np.ndarray, std_threshold: float = 5.0) -> bool:
-      """Kiểm tra vùng ảnh có đủ nét vẽ hay là vùng trống dựa trên độ lệch chuẩn standard deviation."""
-
-  def filter_informative_proposals(proposals: list, drawing: np.ndarray, std_threshold: float = 5.0) -> list:
-      """Lọc bỏ các proposals nằm ở vùng trắng tinh trước khi đưa qua CNN."""
-  ```
-
-### 3.4. [src/features.py](file:///d:/CV_BOM_Detection/src/features.py)
-* **Chức năng:** Bộ trích xuất đặc trưng sâu (Deep Feature Extractor) được thiết kế dạng Singleton/Cached dùng chung toàn cục. Nó chứa cả mô hình ResNet18 (trích xuất tầng nông, giữ cấu trúc không gian qua phép Flatten thay thế hoàn toàn cho GAP) và mô hình DINOv2. Tự động chuyển đổi dựa trên kích thước mẫu.
-* **API:**
-  ```python
-  class DeepFeatureExtractor:
-      def __init__(self, device: str = "cpu") -> None:
-          """Nạp ResNet18 và DINOv2 chủ động tắt gradient tại nguồn."""
-      
-      def extract(self, img_gray: np.ndarray) -> torch.Tensor:
-          """Trích xuất và L2 chuẩn hóa vector đặc trưng sâu 1D từ ảnh mẫu đơn lẻ."""
-
-      def extract_batch(self, imgs: List[np.ndarray]) -> torch.Tensor:
-          """Trích xuất lô đặc trưng của N vùng crop trong 1 forward pass duy nhất để tối ưu tốc độ CPU."""
-
-  def get_shared_feature_extractor(device: str = "cpu") -> DeepFeatureExtractor:
-      """Hàm Singleton/Lazy-Loader trả về extractor dùng chung toàn hệ thống."""
-  ```
-
-### 3.5. [src/engines.py](file:///d:/CV_BOM_Detection/src/engines.py)
-* **Chức năng:** Thực thi trực tiếp các thuật toán tìm kiếm và xử lý hộp bao.
-* **API:**
-  ```python
-  def multiscale_template_match(
-      drawing_gray: np.ndarray,
-      template_preprocessed: np.ndarray,
-      scale_range: Tuple[float, float] = (0.5, 1.5),
-      scale_step: float = 0.05,
-      threshold: float = 0.50
-  ) -> List[Tuple]:
-      """Thực hiện khớp NCC đa tỷ lệ, trả về đề xuất thô."""
-
-  def sliding_window_v2_match(
-      drawing_gray: np.ndarray,
-      template_gray: np.ndarray,
-      extractor: DeepFeatureExtractor,
-      stride: int,
-      v2_threshold: float
-  ) -> List[Dict]:
-      """Thực hiện trượt cửa sổ toàn ảnh và đối sánh đặc trưng sâu dạng lô trên CPU (Mode 2)."""
-
-  def v3_hybrid_pipeline(
-      drawing_gray: np.ndarray,
-      template_gray: np.ndarray,
-      extractor: DeepFeatureExtractor,
-      v1_threshold: float,
-      v2_threshold: float,
-      alpha: float,
-      context_margin_pct: float = 0.15
-  ) -> List[Dict]:
-      """Bộ điều phối liên kết hai giai đoạn Coarse-to-Fine tối ưu hóa tốc độ."""
-
-  def soft_nms(
-      boxes: List[Dict],
-      iou_threshold: float = 0.30,
-      sigma: float = 0.5,
-      score_threshold: float = 0.30
-  ) -> List[Dict]:
-      """Lọc trùng lặp hộp bao bằng thuật toán suy hao Gaussian, bảo vệ hộp lồng nhau hợp lệ."""
-
-  def refine_bbox_local_search(
-      drawing_gray: np.ndarray,
-      bbox: Tuple[int, int, int, int],
-      template_gray: np.ndarray,
-      search_radius: int = 8
-  ) -> Tuple[int, int, int, int, float]:
-      """Tinh chỉnh vị trí Bbox cục bộ bằng NCC bán kính 8px để đạt độ chính xác từng pixel."""
-  ```
-
-### 3.6. [src/detector.py](file:///d:/CV_BOM_Detection/src/detector.py)
-* **Chức năng:** Lớp điều phối chính `PatternDetector`. Được thiết kế để khởi tạo siêu nhanh (Thread-safe) do trích xuất mô hình học sâu ra cơ chế dùng chung. Lưu trữ các thuộc tính nội bộ như bản vẽ lớn và kim tự tháp ảnh để phục vụ việc suy luận nhiều template song song.
-* **API:**
-  ```python
-  class PatternDetector:
-      def __init__(self, device: str = "cpu") -> None: ...
-      def load_drawing(self, drawing_img: np.ndarray) -> None: ...
-      def add_templates(self, templates: List[np.ndarray], with_rotation: bool = False) -> None: ...
-      def detect(self, mode: str = "v3", confidence_threshold: float = 0.75, **kwargs) -> List[Dict]: ...
-      def clear(self) -> None: ...
-  ```
-
-### 3.7. [src/app.py](file:///d:/CV_BOM_Detection/src/app.py)
-* **Chức năng:** Khởi chạy web interface Gradio. Hỗ trợ người dùng tải ảnh bản vẽ lớn, ảnh mẫu, chọn góc xoay, chọn Mode chạy (v1, v2, v3), điều chỉnh các siêu tham số bằng Slider và hiển thị trực quan BBounding Box vẽ trực tiếp trên ảnh kết quả.
 
 ---
 
-## 4. Quy trình Kiểm thử (Testing Process)
+### 3.2. [src/exceptions.py](file:///d:/CV_BOM_Detection/src/exceptions.py)
+Định nghĩa hệ thống ngoại lệ phân cấp rõ ràng để phân biệt lỗi nghiệp vụ và lỗi kỹ thuật, tích hợp cơ chế khôi phục/fallback.
 
-Hệ thống áp dụng quy trình kiểm thử 3 lớp sử dụng thư viện `pytest`:
+* **Kiến trúc ngoại lệ tùy chỉnh:**
+  ```python
+  class BOMDetectorException(Exception):
+      """Lớp ngoại lệ cơ sở cho toàn bộ hệ thống."""
+      pass
 
-1. **Unit Tests (Kiểm thử đơn vị):**
-   * Kiểm thử riêng biệt file `test_io_validation.py` với các mảng giả lập có số kênh màu khác nhau (Grayscale, RGB, RGBA), kiểm tra tính năng loại bỏ kênh Alpha và phát hiện lỗi lệch kích thước.
-   * Kiểm thử `test_preprocessing.py` đảm bảo phép xoay, polarity sync và variance lọc hoạt động chính xác về mặt toán học.
-   * Kiểm thử `test_engines.py` xác thực Soft-NMS phân rã đúng điểm số của các hộp bao chồng chéo mà không loại bỏ hộp lồng nhau.
+  class InvalidImageException(BOMDetectorException):
+      """Lỗi ảnh đầu vào rỗng, hỏng hoặc không đọc được kênh màu."""
+      pass
 
-2. **Integration Tests (Kiểm thử tích hợp):**
-   * Nạp ảnh bản vẽ mẫu và ảnh pattern thật $\rightarrow$ Kiểm tra luồng chạy hoàn chỉnh của `PatternDetector` cho cả 3 chế độ (`v1`, `v2`, `v3`).
-   * Xác nhận định dạng đầu ra của hàm `detect` chứa đầy đủ thông tin vị trí `bbox`, độ tin cậy `confidence` và thông tin `rotation`.
+  class IncompatibleSizeException(BOMDetectorException):
+      """Lỗi ảnh mẫu lớn hơn ảnh bản vẽ."""
+      pass
 
-3. **Performance & Stress Tests (Kiểm thử hiệu năng):**
-   * Chạy kiểm thử đo hiệu năng xử lý với kích thước ảnh thực tế $\ge 1535 \times 1024$ px.
-   * Kiểm tra bộ nhớ RAM trước và sau khi suy luận để đảm bảo không xảy ra rò rỉ bộ nhớ khi gọi hàm liên tục nhờ cơ chế `requires_grad_(False)` kết hợp phương thức dọn dẹp `clear()`.
-   * Kiểm soát chặt chẽ thời gian thực thi: Mode 1 < 10 giây, Mode 3 < 60 giây trên môi trường CPU.
+  class ModelLoadException(BOMDetectorException):
+      """Lỗi không thể tải mô hình học sâu vào thiết bị yêu cầu."""
+      pass
+  ```
 
 ---
 
-## 5. Hạn chế đã biết và Cách khắc phục (Known Limitations)
+## 4. Cơ chế Xử lý lỗi & Fallback (Error Handling & Fallbacks)
 
-* **Sai lệch tọa độ BBox nhỏ (Bug 7):** Do cấu trúc Coarse-to-Fine chỉ chấm điểm lại mà không có mạng con hồi quy Bbox, vị trí tọa độ có thể bị lệch khoảng $\pm3$ pixel trong giai đoạn thô.
-* **Cách khắc phục:** Triển khai giải thuật tìm kiếm cục bộ bằng NCC truyền thống trong phạm vi bán kính nhỏ 8 pixel (`refine_bbox_local_search`) tại các vùng kết quả sau Soft-NMS để tinh chỉnh tọa độ BBox tiệm cận mức hoàn hảo.
+Để hệ thống không bị crash đột ngột trên HuggingFace Spaces, chúng tôi triển khai 3 cơ chế Fallback tự động:
+
+### 4.1. Cơ chế Fallback Thiết bị (Device Fallback)
+Khi người dùng yêu cầu chạy trên GPU (`device="cuda"`), nếu xảy ra lỗi phần cứng hoặc tràn bộ nhớ đồ họa (Out of Memory - OOM), hệ thống sẽ **tự động chuyển sang CPU** mà không làm sập tiến trình.
+```python
+# Trích xuất từ src/features.py
+def get_shared_feature_extractor(device: str = "cpu") -> DeepFeatureExtractor:
+    try:
+        if device == "cuda" and not torch.cuda.is_available():
+            raise ModelLoadException("CUDA không khả dụng.")
+        return DeepFeatureExtractor(device=device)
+    except Exception as e:
+        print(f"[Warning] Khởi chạy GPU thất bại: {e}. Tự động Fallback sang CPU.")
+        return DeepFeatureExtractor(device="cpu") # Fallback
+```
+
+### 4.2. Cơ chế Fallback Extractor (Model Fallback)
+Mô hình nền tảng DINOv2 có dung lượng và độ phức tạp tính toán lớn hơn nhiều so với ResNet18.
+* **Cơ chế:** Nếu mô hình DINOv2 bị crash trong quá trình trích xuất đặc trưng do tràn bộ nhớ, hệ thống sẽ **tự động hạ cấp sang sử dụng mô hình ResNet18** gọn nhẹ hơn để tiếp tục xử lý và gửi cảnh báo lên UI Gradio.
+
+### 4.3. Cơ chế Khôi phục trạng thái bộ nhớ (Graceful Cleanup Fallback)
+Khi bất kỳ bước nào trong pipeline xảy ra ngoại lệ (như lỗi xử lý ảnh):
+1. Bắt ngoại lệ tại hàm điều phối `detect()`.
+2. Tự động gọi phương thức `self.clear()` để giải phóng toàn bộ các mảng dữ liệu ảnh và kim tự tháp ảnh đã lưu trong bộ nhớ.
+3. Trả về thông báo lỗi dạng chuỗi thân thiện cho người dùng trên giao diện UI thay vì hiển thị màn hình crash.
+
+---
+
+## 5. Cải tiến của lớp `PatternDetector` (Tích hợp Metrics & Fallbacks)
+
+```python
+# src/detector.py
+from typing import Dict, List, Tuple, Any
+import numpy as np
+from metrics import PerformanceTracker
+from exceptions import BOMDetectorException, InvalidImageException
+from features import get_shared_feature_extractor
+# ... các import khác ...
+
+class PatternDetector:
+    def __init__(self, device: str = "cpu") -> None:
+        self.device = device
+        self.feature_extractor = get_shared_feature_extractor(device=self.device)
+        self.tracker = PerformanceTracker()
+        
+        # State lưu trữ dữ liệu ảnh
+        self.drawing_raw = None
+        self.drawing_gray = None
+        self.drawing_pyramid = []
+        self.templates_variants = []
+
+    def load_drawing(self, drawing_img: np.ndarray) -> None:
+        try:
+            self.tracker.start_stage("load_and_normalize_drawing")
+            # Chuẩn hóa
+            self.drawing_gray = self._normalize_drawing(drawing_img)
+            # Tạo Image Pyramid
+            self.drawing_pyramid = self._build_drawing_pyramid(self.drawing_gray)
+            self.tracker.end_stage("load_and_normalize_drawing")
+        except Exception as e:
+            self.clear()
+            raise InvalidImageException(f"Lỗi khi nạp ảnh bản vẽ: {str(e)}")
+
+    def detect(
+        self,
+        mode: str = "v3",
+        confidence_threshold: float = 0.75,
+        v1_threshold: float = 0.50,
+        v2_threshold: float = 0.80,
+        alpha: float = 0.30,
+        iou_threshold: float = 0.30,
+        enable_local_refine: bool = False,
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """
+        BƯỚC 3: Chạy so khớp tích hợp đo đạc hiệu năng chi tiết và xử lý lỗi.
+        
+        Returns:
+            Tuple chứa:
+              - Danh sách BBoxes kết quả.
+              - Report chứa thông số RAM, thời gian chạy từng bước nhỏ.
+        """
+        self.tracker = PerformanceTracker() # Reset tracker mới cho mỗi lượt chạy
+        all_raw_results = []
+        
+        try:
+            # 1. Giai đoạn Coarse (V1)
+            self.tracker.start_stage("Stage_1_Coarse_V1")
+            for tmpl, rotation_name in self.templates_variants:
+                if mode in ["v1", "v3"]:
+                    # Chạy matching
+                    pass
+            self.tracker.end_stage("Stage_1_Coarse_V1")
+
+            # 2. Giai đoạn lọc vùng trắng tinh
+            self.tracker.start_stage("Blank_Region_Filtering")
+            # Thực thi lọc
+            self.tracker.end_stage("Blank_Region_Filtering")
+
+            # 3. Giai đoạn Fine (V2) hoặc Quét toàn ảnh
+            self.tracker.start_stage("Stage_2_Fine_V2")
+            # Thực thi CNN trích xuất & cosine similarity
+            self.tracker.end_stage("Stage_2_Fine_V2")
+
+            # 4. Gom kết quả & Soft-NMS
+            self.tracker.start_stage("Postprocessing_NMS")
+            # Thực thi soft-nms
+            self.tracker.end_stage("Postprocessing_NMS")
+
+            # 5. NCC Local Search tinh chỉnh
+            if enable_local_refine:
+                self.tracker.start_stage("BBox_Local_Refinement")
+                # Thực thi tinh chỉnh
+                self.tracker.end_stage("BBox_Local_Refinement")
+
+            # Tạo báo cáo hiệu năng cuối cùng
+            metrics_report = self.tracker.get_report()
+            metrics_report["num_proposals_v1"] = len(all_raw_results)
+            
+            return all_raw_results, metrics_report
+
+        except Exception as e:
+            # Tự động giải phóng bộ nhớ khi xảy ra lỗi đột ngột
+            self.clear()
+            raise BOMDetectorException(f"Quá trình suy luận thất bại: {str(e)}")
+```
+
+---
+
+## 6. Giao diện Gradio Dashboard tích hợp Performance Panel
+
+Giao diện Web UI tại [src/app.py](file:///d:/CV_BOM_Detection/src/app.py) sẽ hiển thị thêm một bảng số liệu hiệu năng (Performance Dashboard) trực quan bên cạnh hình ảnh đầu ra:
+
+* **Bảng điều khiển trực quan gồm:**
+  * **Thời gian tổng cộng:** giây (Đỏ/Vàng/Xanh lá dựa trên ngưỡng < 60s).
+  * **Biểu đồ cột thời gian từng bước nhỏ:** Giúp người dùng phân tích rõ nút thắt cổ chai nằm ở giai đoạn nào (V1, CNN forward, hay NMS).
+  * **Bộ nhớ RAM biến động:** Báo cáo RAM đỉnh tiêu thụ để giám sát rò rỉ bộ nhớ.
+  * **Báo cáo số hộp đề xuất:** Hiển thị số proposals ban đầu của V1 so với số BBoxes được CNN giữ lại và số BBoxes cuối cùng sau NMS.
