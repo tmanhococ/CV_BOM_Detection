@@ -171,7 +171,7 @@ def run_app_inference(
     except Exception as e:
         return None, {"error": f"Lỗi Hệ thống không mong đợi: {str(e)}"}, ""
 
-with gr.Blocks(theme=gr.themes.Soft(primary_hue="sky"), title="Zero-Shot BOM Pattern Detector Pro") as demo:
+with gr.Blocks(title="Zero-Shot BOM Pattern Detector Pro") as demo:
     gr.Markdown(
         """
         # 🎯 Zero-Shot BOM Pattern Detector Pro
@@ -231,3 +231,11 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="sky"), title="Zero-Shot BOM Pat
             dashboard_output
         ]
     )
+
+if __name__ == "__main__":
+    demo.launch(
+        server_name="127.0.0.1",
+        server_port=7860,
+        theme=gr.themes.Soft(primary_hue="sky")
+    )
+
