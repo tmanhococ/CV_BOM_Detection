@@ -150,7 +150,8 @@ def test_run_app_inference_cancellation(tmp_path, dummy_pattern, dummy_grayscale
         var_std=5.0,
         margin=0.15,
         extractor_choice="auto",
-        cancellation_state=cancellation_state
+        cancellation_state=cancellation_state,
+        reset_cancellation=False
     )
     
     assert vis is None

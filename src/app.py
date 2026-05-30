@@ -3,7 +3,7 @@ import os
 # Path resolution dòng đầu tiên để kích hoạt import tuyệt đối src.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from typing import Union, Dict, Any, List
+from typing import Union, Dict, Any, List, Optional
 
 import gradio as gr
 import numpy as np
@@ -126,11 +126,11 @@ def run_app_inference(
     var_std: float,
     margin: float,
     extractor_choice: str,
-    cancellation_state: Any = None
+    cancellation_state: Optional[CancellationState] = None,
+    reset_cancellation: bool = True
 ) -> tuple[Union[np.ndarray, None], Union[List[Dict[str, Any]], Dict[str, Any]], str]:
-    if cancellation_state is not None:
-        if not (cancellation_state.is_cancelled and "pytest" in sys.modules):
-            cancellation_state.reset()
+    if cancellation_state is not None and reset_cancellation:
+        cancellation_state.reset()
         
     if not pattern_path or not drawing_path:
         return None, {"error": "Vui lòng upload đầy đủ ảnh mẫu (Pattern) và bản vẽ (Drawing)."}, ""

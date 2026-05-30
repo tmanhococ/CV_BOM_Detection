@@ -40,5 +40,6 @@ class CancellationState:
         if self.is_cancelled:
             raise DetectionCancelledException("Quá trình phát hiện đã bị hủy bởi người dùng.")
 
-    def __deepcopy__(self, memo) -> 'CancellationState':
+    def __deepcopy__(self, memo: dict) -> 'CancellationState':
+        """Bypass deepcopying of the non-serializable threading.Event lock by returning a fresh instance."""
         return CancellationState()

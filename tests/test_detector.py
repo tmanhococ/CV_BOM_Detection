@@ -132,4 +132,19 @@ def test_detector_cancellation(dummy_grayscale_drawing, dummy_pattern):
     assert len(detector.templates_variants) > 0
 
 
+def test_cancellation_state_deepcopy():
+    import copy
+    from src.exceptions import CancellationState
+    
+    state = CancellationState()
+    state.cancel()
+    assert state.is_cancelled
+    
+    state_copy = copy.deepcopy(state)
+    assert isinstance(state_copy, CancellationState)
+    # The deepcopied state must be a fresh, uncancelled instance
+    assert not state_copy.is_cancelled
+
+
+
 
