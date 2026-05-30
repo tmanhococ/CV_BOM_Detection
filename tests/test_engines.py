@@ -66,3 +66,18 @@ def test_refine_bbox_local_search(dummy_grayscale_drawing, dummy_pattern):
     assert abs(rx - 50) <= 2
     assert abs(ry - 50) <= 2
     assert rscore > 0.5
+
+def test_multiscale_template_match_cancellation():
+    from src.engines import multiscale_template_match
+    from src.exceptions import CancellationState, DetectionCancelledException
+    
+    drawing = np.ones((100, 100), dtype=np.uint8) * 255
+    tmpl = np.ones((10, 10), dtype=np.uint8) * 255
+    
+    state = CancellationState()
+    state.cancel()  # Immediately cancel
+    
+    with pytest.raises(DetectionCancelledException):
+        multiscale_template_match(
+            drawing, tmpl, scale_range=(0.8, 1.2), scale_step=0.1, cancellation_state=state
+        )

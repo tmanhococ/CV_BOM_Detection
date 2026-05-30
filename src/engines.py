@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from typing import List, Tuple, Dict, Literal, TypedDict
+from typing import List, Tuple, Dict, Literal, TypedDict, Any
 
 class BoundingBoxDict(TypedDict):
     bbox: Tuple[int, int, int, int]
@@ -12,6 +12,7 @@ def multiscale_template_match(
     scale_range: Tuple[float, float] = (0.5, 1.5),
     scale_step: float = 0.05,
     threshold: float = 0.50,
+    cancellation_state: Any = None,
 ) -> List[Tuple[int, int, int, int, float, float]]:
     """
     Khớp mẫu đa tỷ lệ sử dụng NCC chuẩn hóa Pearson bất biến ánh sáng.
@@ -23,6 +24,8 @@ def multiscale_template_match(
     dh, dw = drawing_gray.shape[:2]
 
     for scale in scales:
+        if cancellation_state is not None:
+            cancellation_state.check()
         new_w = max(int(th_w * scale), 5)
         new_h = max(int(th_h * scale), 5)
 
