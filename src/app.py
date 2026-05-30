@@ -171,6 +171,45 @@ def run_app_inference(
     except Exception as e:
         return None, {"error": f"Lỗi Hệ thống không mong đợi: {str(e)}"}, ""
 
+def discover_presets() -> tuple[list[str], list[str]]:
+    """Scan data/patterns/ and data/drawings/ relative to the workspace root,
+    ignoring case for valid extensions (.png, .jpg, .jpeg).
+    Returns list of filenames for patterns, and list of filenames for drawings.
+    """
+    valid_exts = ('.png', '.jpg', '.jpeg')
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+    patterns_dir = os.path.join(base_dir, "data", "patterns")
+    drawings_dir = os.path.join(base_dir, "data", "drawings")
+    
+    patterns = []
+    if os.path.exists(patterns_dir):
+        patterns = [
+            f for f in os.listdir(patterns_dir)
+            if f.lower().endswith(valid_exts) and os.path.isfile(os.path.join(patterns_dir, f))
+        ]
+        patterns.sort()
+        
+    drawings = []
+    if os.path.exists(drawings_dir):
+        drawings = [
+            f for f in os.listdir(drawings_dir)
+            if f.lower().endswith(valid_exts) and os.path.isfile(os.path.join(drawings_dir, f))
+        ]
+        drawings.sort()
+        
+    return patterns, drawings
+
+def load_preset_image(filename: Union[str, None], category: str) -> Union[str, None]:
+    """Returns the absolute path of the chosen file if it exists, or None."""
+    if not filename:
+        return None
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    target_path = os.path.abspath(os.path.join(base_dir, "data", category, filename))
+    if os.path.exists(target_path) and os.path.isfile(target_path):
+        return target_path
+    return None
+
 with gr.Blocks(title="Zero-Shot BOM Pattern Detector Pro") as demo:
     gr.Markdown(
         """
@@ -184,6 +223,11 @@ with gr.Blocks(title="Zero-Shot BOM Pattern Detector Pro") as demo:
             gr.Markdown("### 📥 Input Images")
             pattern_input = gr.Image(label="Pattern Image (Mẫu cần tìm)", type="filepath")
             drawing_input = gr.Image(label="Drawing Image (Bản vẽ chính)", type="filepath")
+            
+            with gr.Accordion("💡 Preset Sample Library (Thư viện mẫu sẵn)", open=False):
+                patterns, drawings = discover_presets()
+                pattern_preset = gr.Dropdown(choices=patterns, label="Pattern Preset (Mẫu hoa văn)", value=None)
+                drawing_preset = gr.Dropdown(choices=drawings, label="Drawing Preset (Bản vẽ mẫu)", value=None)
             
             with gr.Accordion("⚙️ Parameters & Thresholds", open=False):
                 mode_input = gr.Radio(["v1", "v2", "v3"], label="Pipeline Version", value="v3")
@@ -209,6 +253,17 @@ with gr.Blocks(title="Zero-Shot BOM Pattern Detector Pro") as demo:
                 with gr.Column(scale=1):
                     json_output = gr.JSON(label="Detailed Bounding Boxes JSON")
                     
+    pattern_preset.change(
+        fn=lambda name: load_preset_image(name, "patterns"),
+        inputs=[pattern_preset],
+        outputs=[pattern_input]
+    )
+    drawing_preset.change(
+        fn=lambda name: load_preset_image(name, "drawings"),
+        inputs=[drawing_preset],
+        outputs=[drawing_input]
+    )
+    
     run_btn.click(
         fn=run_app_inference,
         inputs=[

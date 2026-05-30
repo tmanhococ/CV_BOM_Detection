@@ -89,3 +89,19 @@ def test_run_app_inference_valid(tmp_path, dummy_pattern, dummy_grayscale_drawin
     assert len(json_out) > 0
     assert "bbox" in json_out[0]
     assert "Performance Dashboard" in dashboard_html
+
+def test_preset_file_discovery():
+    import os
+    from src.app import discover_presets
+    
+    patterns, drawings = discover_presets()
+    # Verify lists contain only valid extensions or are lists
+    assert isinstance(patterns, list)
+    assert isinstance(drawings, list)
+    
+    valid_exts = ('.png', '.jpg', '.jpeg')
+    for p in patterns:
+        assert p.lower().endswith(valid_exts)
+    for d in drawings:
+        assert d.lower().endswith(valid_exts)
+
