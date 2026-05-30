@@ -100,3 +100,12 @@ def test_detector_multiple_templates(dummy_grayscale_drawing, dummy_pattern):
     variant_indices = [res["variant_idx"] for res in results]
     assert all(idx in [0, 1] for idx in variant_indices)
 
+
+def test_cancellation_state_toggles():
+    from src.exceptions import CancellationState
+    state = CancellationState()
+    assert not state.is_cancelled
+    state.cancel()
+    assert state.is_cancelled
+    state.reset()
+    assert not state.is_cancelled

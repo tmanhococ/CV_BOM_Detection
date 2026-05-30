@@ -13,3 +13,18 @@ class IncompatibleSizeException(BOMDetectorException):
 class ModelLoadException(BOMDetectorException):
     """Lỗi không thể tải mô hình học sâu vào thiết bị yêu cầu."""
     pass
+
+class DetectionCancelledException(BOMDetectorException):
+    """Ngoại lệ ném ra khi người dùng huỷ quá trình phát hiện."""
+    pass
+
+class CancellationState:
+    """Trạng thái hủy đồng bộ giữa luồng giao diện và luồng tính toán."""
+    def __init__(self):
+        self.is_cancelled = False
+        
+    def cancel(self):
+        self.is_cancelled = True
+        
+    def reset(self):
+        self.is_cancelled = False
