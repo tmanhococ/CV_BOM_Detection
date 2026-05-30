@@ -126,3 +126,36 @@ def test_load_preset_image_security_and_bounds():
     assert load_preset_image("../app.py", "patterns") is None
     assert load_preset_image("../../../etc/passwd", "patterns") is None
 
+
+def test_run_app_inference_cancellation(tmp_path, dummy_pattern, dummy_grayscale_drawing):
+    from src.exceptions import CancellationState
+    pattern_path = os.path.join(tmp_path, "pattern.png")
+    drawing_path = os.path.join(tmp_path, "drawing.png")
+    cv2.imwrite(pattern_path, dummy_pattern)
+    cv2.imwrite(drawing_path, dummy_grayscale_drawing)
+    
+    cancellation_state = CancellationState()
+    cancellation_state.cancel()  # Abort before start
+    
+    vis, json_out, dashboard_html = run_app_inference(
+        pattern_path=pattern_path,
+        drawing_path=drawing_path,
+        mode="v3",
+        conf_thresh=0.40,
+        v1_thresh=0.40,
+        v2_thresh=0.50,
+        alpha=0.30,
+        iou_thresh=0.30,
+        enable_refine=True,
+        var_std=5.0,
+        margin=0.15,
+        extractor_choice="auto",
+        cancellation_state=cancellation_state
+    )
+    
+    assert vis is None
+    assert isinstance(json_out, dict)
+    assert "error" in json_out
+    assert "hủy" in json_out["error"].lower()
+
+

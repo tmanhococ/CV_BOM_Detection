@@ -39,3 +39,6 @@ class CancellationState:
         """Kiểm tra và ném ngoại lệ nếu trạng thái hủy đã được kích hoạt."""
         if self.is_cancelled:
             raise DetectionCancelledException("Quá trình phát hiện đã bị hủy bởi người dùng.")
+
+    def __deepcopy__(self, memo) -> 'CancellationState':
+        return CancellationState()

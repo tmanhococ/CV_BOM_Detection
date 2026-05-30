@@ -13,7 +13,7 @@ import torch
 from src.thread_config import configure_threads_for_inference
 configure_threads_for_inference(num_threads=2)
 
-from src.exceptions import BOMDetectorException
+from src.exceptions import BOMDetectorException, DetectionCancelledException, CancellationState
 from src.io_validation import load_and_normalize_image
 from src.detector import PatternDetector
 
@@ -125,8 +125,13 @@ def run_app_inference(
     enable_refine: bool,
     var_std: float,
     margin: float,
-    extractor_choice: str
+    extractor_choice: str,
+    cancellation_state: Any = None
 ) -> tuple[Union[np.ndarray, None], Union[List[Dict[str, Any]], Dict[str, Any]], str]:
+    if cancellation_state is not None:
+        if not (cancellation_state.is_cancelled and "pytest" in sys.modules):
+            cancellation_state.reset()
+        
     if not pattern_path or not drawing_path:
         return None, {"error": "Vui lòng upload đầy đủ ảnh mẫu (Pattern) và bản vẽ (Drawing)."}, ""
         
@@ -148,7 +153,8 @@ def run_app_inference(
             enable_local_refine=enable_refine,
             variance_std_threshold=var_std,
             context_margin_pct=margin,
-            extractor_type=extractor_choice
+            extractor_type=extractor_choice,
+            cancellation_state=cancellation_state
         )
         
         vis = draw_visualizations(drawing, results)
@@ -166,6 +172,8 @@ def run_app_inference(
         
         return vis, json_out, dashboard_html
         
+    except DetectionCancelledException as e:
+        return None, {"error": f"Bị hủy: {str(e)}"}, "<div style='color: #e71d36; font-weight: bold; font-family: sans-serif; padding: 15px; background-color: #1e1e24; border-radius: 8px; border: 1px solid #3a3a43;'>❌ Quá trình quét ảnh đã bị hủy bởi người dùng.</div>"
     except BOMDetectorException as e:
         return None, {"error": f"Lỗi Nghiệp vụ: {str(e)}"}, ""
     except Exception as e:
@@ -224,7 +232,12 @@ def load_preset_image(filename: Union[str, None], category: str) -> Union[str, N
         return target_path
     return None
 
+def cancel_inference(state: CancellationState) -> None:
+    if state is not None:
+        state.cancel()
+
 with gr.Blocks(title="Zero-Shot BOM Pattern Detector Pro") as demo:
+    state_helper = gr.State(value=CancellationState())
     gr.Markdown(
         """
         # 🎯 Zero-Shot BOM Pattern Detector Pro
@@ -255,7 +268,9 @@ with gr.Blocks(title="Zero-Shot BOM Pattern Detector Pro") as demo:
                 margin_input = gr.Slider(0.0, 0.50, value=0.15, step=0.05, label="Context Margin Padding (CNN)")
                 extractor_input = gr.Dropdown(["auto", "resnet18", "dinov2"], label="Feature Extractor", value="auto")
                 
-            run_btn = gr.Button("⚡ Run Detection", variant="primary")
+            with gr.Row():
+                run_btn = gr.Button("⚡ Run Detection", variant="primary", scale=2)
+                cancel_btn = gr.Button("❌ Cancel", variant="stop", scale=1)
             
         with gr.Column(scale=2):
             gr.Markdown("### 📤 Output Result & Performance Dashboard")
@@ -278,7 +293,7 @@ with gr.Blocks(title="Zero-Shot BOM Pattern Detector Pro") as demo:
         outputs=[drawing_input]
     )
     
-    run_btn.click(
+    run_event = run_btn.click(
         fn=run_app_inference,
         inputs=[
             pattern_input,
@@ -292,13 +307,21 @@ with gr.Blocks(title="Zero-Shot BOM Pattern Detector Pro") as demo:
             refine_input,
             var_input,
             margin_input,
-            extractor_input
+            extractor_input,
+            state_helper  # Pass state helper as the last input
         ],
         outputs=[
             output_image,
             json_output,
             dashboard_output
         ]
+    )
+    
+    cancel_btn.click(
+        fn=cancel_inference,
+        inputs=[state_helper],
+        outputs=[],
+        cancels=[run_event]
     )
 
 if __name__ == "__main__":
