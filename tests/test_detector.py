@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import cv2
-from src.exceptions import InvalidImageException, BOMDetectorException
+from src.exceptions import InvalidImageException, BOMDetectorException, CancellationState, DetectionCancelledException
 from src.detector import PatternDetector
 
 def test_detector_pipeline_v1(dummy_grayscale_drawing, dummy_pattern):
@@ -102,10 +102,15 @@ def test_detector_multiple_templates(dummy_grayscale_drawing, dummy_pattern):
 
 
 def test_cancellation_state_toggles():
-    from src.exceptions import CancellationState
     state = CancellationState()
     assert not state.is_cancelled
+    state.check()  # Nên chạy qua êm đẹp
+    
     state.cancel()
     assert state.is_cancelled
+    with pytest.raises(DetectionCancelledException):
+        state.check()
+        
     state.reset()
     assert not state.is_cancelled
+    state.check()  # Nên chạy qua êm đẹp
