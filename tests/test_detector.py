@@ -114,3 +114,19 @@ def test_cancellation_state_toggles():
     state.reset()
     assert not state.is_cancelled
     state.check()  # Nên chạy qua êm đẹp
+
+
+def test_detector_cancellation(dummy_grayscale_drawing, dummy_pattern):
+    from src.detector import PatternDetector
+    from src.exceptions import CancellationState, DetectionCancelledException
+    
+    detector = PatternDetector(device="cpu")
+    detector.load_drawing(dummy_grayscale_drawing)
+    detector.add_templates([dummy_pattern])
+    
+    state = CancellationState()
+    state.cancel()  # Immediately cancel before running pipeline
+    
+    with pytest.raises(DetectionCancelledException):
+        detector.detect(cancellation_state=state)
+

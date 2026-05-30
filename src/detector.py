@@ -111,10 +111,14 @@ class PatternDetector:
         variance_std_threshold: float = 5.0,
         context_margin_pct: float = 0.15,
         extractor_type: str = "auto",
+        cancellation_state: Any = None,
     ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Hàm suy luận trung tâm của PatternDetector hỗ trợ đo đạc chi tiết và dọn dẹp graceful.
         """
+        if cancellation_state is not None:
+            cancellation_state.check()
+
         if self.drawing_gray is None:
             raise BOMDetectorException("Drawing chưa được nạp.")
         if not self.templates_variants:
@@ -123,6 +127,9 @@ class PatternDetector:
         all_results = []
 
         try:
+            if cancellation_state is not None:
+                cancellation_state.check()
+
             # 1. Hoist Drawing Polarity Synchronization
             self.tracker.start_stage("Prep_Drawing_Polarity")
             drawing_sync, _ = synchronize_polarity(self.drawing_gray, self.drawing_gray)
@@ -141,7 +148,12 @@ class PatternDetector:
             ]
             self.tracker.end_stage("Prep_Template_Edges")
 
+            if cancellation_state is not None:
+                cancellation_state.check()
+
             for idx, (tmpl, rotation_name) in enumerate(self.templates_variants):
+                if cancellation_state is not None:
+                    cancellation_state.check()
                 tmpl_sync = tmpl  # Already synchronized in add_templates()
                 tmpl_edge = tmpl_edges[idx]
                 
@@ -152,7 +164,7 @@ class PatternDetector:
 
                     self.tracker.start_stage(f"V1_Matching_{rotation_name}")
                     proposals = multiscale_template_match(
-                        drawing_edge, tmpl_edge, threshold=v1_threshold
+                        drawing_edge, tmpl_edge, threshold=v1_threshold, cancellation_state=cancellation_state
                       )
                     self.tracker.end_stage(f"V1_Matching_{rotation_name}")
 
@@ -168,7 +180,7 @@ class PatternDetector:
                 elif mode == "v2":
                     self.tracker.start_stage(f"V2_Candidate_Gen_{rotation_name}")
                     proposals = multiscale_template_match(
-                        drawing_edge, tmpl_edge, threshold=0.35
+                        drawing_edge, tmpl_edge, threshold=0.35, cancellation_state=cancellation_state
                     )
                     self.tracker.end_stage(f"V2_Candidate_Gen_{rotation_name}")
 
@@ -200,6 +212,9 @@ class PatternDetector:
 
                     if not proposals:
                         continue
+
+                    if cancellation_state is not None:
+                        cancellation_state.check()
 
                     self.tracker.start_stage(f"V2_CNN_Init_{rotation_name}")
                     selected_backbone = extractor_type
@@ -242,7 +257,7 @@ class PatternDetector:
                 elif mode == "v3":
                     self.tracker.start_stage(f"V3_Coarse_V1_{rotation_name}")
                     proposals = multiscale_template_match(
-                        drawing_edge, tmpl_edge, threshold=v1_threshold
+                        drawing_edge, tmpl_edge, threshold=v1_threshold, cancellation_state=cancellation_state
                     )
                     self.tracker.end_stage(f"V3_Coarse_V1_{rotation_name}")
 
@@ -274,6 +289,9 @@ class PatternDetector:
 
                     if not proposals:
                         continue
+
+                    if cancellation_state is not None:
+                        cancellation_state.check()
 
                     self.tracker.start_stage(f"V3_CNN_Init_{rotation_name}")
                     selected_backbone = extractor_type
@@ -319,6 +337,9 @@ class PatternDetector:
                             })
                     self.tracker.end_stage(f"V3_Score_Fusion_{rotation_name}")
 
+
+            if cancellation_state is not None:
+                cancellation_state.check()
 
             # Gom cụm Soft-NMS
             self.tracker.start_stage("Postprocessing_Soft_NMS")
