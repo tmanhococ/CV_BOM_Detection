@@ -183,29 +183,43 @@ def discover_presets() -> tuple[list[str], list[str]]:
     drawings_dir = os.path.join(base_dir, "data", "drawings")
     
     patterns = []
-    if os.path.exists(patterns_dir):
-        patterns = [
-            f for f in os.listdir(patterns_dir)
-            if f.lower().endswith(valid_exts) and os.path.isfile(os.path.join(patterns_dir, f))
-        ]
-        patterns.sort()
-        
     drawings = []
-    if os.path.exists(drawings_dir):
-        drawings = [
-            f for f in os.listdir(drawings_dir)
-            if f.lower().endswith(valid_exts) and os.path.isfile(os.path.join(drawings_dir, f))
-        ]
-        drawings.sort()
+    
+    try:
+        if os.path.exists(patterns_dir):
+            patterns = [
+                f for f in os.listdir(patterns_dir)
+                if f.lower().endswith(valid_exts) and os.path.isfile(os.path.join(patterns_dir, f))
+            ]
+            patterns.sort()
+    except Exception as e:
+        print(f"Error scanning pattern presets: {e}")
+        
+    try:
+        if os.path.exists(drawings_dir):
+            drawings = [
+                f for f in os.listdir(drawings_dir)
+                if f.lower().endswith(valid_exts) and os.path.isfile(os.path.join(drawings_dir, f))
+            ]
+            drawings.sort()
+    except Exception as e:
+        print(f"Error scanning drawing presets: {e}")
         
     return patterns, drawings
 
 def load_preset_image(filename: Union[str, None], category: str) -> Union[str, None]:
-    """Returns the absolute path of the chosen file if it exists, or None."""
+    """Trả về đường dẫn tuyệt đối của tệp mẫu được chọn nếu hợp lệ, tránh Path Traversal."""
     if not filename:
         return None
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    target_path = os.path.abspath(os.path.join(base_dir, "data", category, filename))
+    
+    expected_dir = os.path.abspath(os.path.join(base_dir, "data", category))
+    target_path = os.path.abspath(os.path.join(expected_dir, filename))
+    
+    # Bảo vệ chống tấn công thay đổi đường dẫn (Path Traversal Protection)
+    if not target_path.startswith(expected_dir + os.sep):
+        return None
+        
     if os.path.exists(target_path) and os.path.isfile(target_path):
         return target_path
     return None

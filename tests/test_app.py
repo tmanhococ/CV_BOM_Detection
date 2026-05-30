@@ -2,7 +2,13 @@ import os
 import pytest
 import numpy as np
 import cv2
-from src.app import draw_visualizations, make_html_performance_dashboard, run_app_inference
+from src.app import (
+    draw_visualizations,
+    make_html_performance_dashboard,
+    run_app_inference,
+    discover_presets,
+    load_preset_image
+)
 
 def test_draw_visualizations():
     # Test drawing on single channel grayscale image
@@ -91,9 +97,6 @@ def test_run_app_inference_valid(tmp_path, dummy_pattern, dummy_grayscale_drawin
     assert "Performance Dashboard" in dashboard_html
 
 def test_preset_file_discovery():
-    import os
-    from src.app import discover_presets
-    
     patterns, drawings = discover_presets()
     # Verify lists contain only valid extensions or are lists
     assert isinstance(patterns, list)
@@ -104,4 +107,22 @@ def test_preset_file_discovery():
         assert p.lower().endswith(valid_exts)
     for d in drawings:
         assert d.lower().endswith(valid_exts)
+
+def test_load_preset_image_security_and_bounds():
+    patterns, drawings = discover_presets()
+    
+    # Happy paths (nếu có tệp trong data)
+    if patterns:
+        path = load_preset_image(patterns[0], "patterns")
+        assert path is not None
+        assert os.path.exists(path)
+        
+    # Edge cases
+    assert load_preset_image(None, "patterns") is None
+    assert load_preset_image("", "patterns") is None
+    assert load_preset_image("non_existent_file.png", "patterns") is None
+    
+    # Chống Path Traversal (Security test)
+    assert load_preset_image("../app.py", "patterns") is None
+    assert load_preset_image("../../../etc/passwd", "patterns") is None
 
