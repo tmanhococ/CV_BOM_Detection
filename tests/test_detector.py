@@ -117,9 +117,6 @@ def test_cancellation_state_toggles():
 
 
 def test_detector_cancellation(dummy_grayscale_drawing, dummy_pattern):
-    from src.detector import PatternDetector
-    from src.exceptions import CancellationState, DetectionCancelledException
-    
     detector = PatternDetector(device="cpu")
     detector.load_drawing(dummy_grayscale_drawing)
     detector.add_templates([dummy_pattern])
@@ -129,4 +126,10 @@ def test_detector_cancellation(dummy_grayscale_drawing, dummy_pattern):
     
     with pytest.raises(DetectionCancelledException):
         detector.detect(cancellation_state=state)
+
+    # State should NOT be cleared on cancellation
+    assert detector.drawing_gray is not None
+    assert len(detector.templates_variants) > 0
+
+
 

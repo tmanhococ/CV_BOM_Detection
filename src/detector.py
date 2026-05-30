@@ -2,11 +2,13 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import cv2
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Any, Optional
 
 from src.exceptions import (
     BOMDetectorException,
-    InvalidImageException
+    InvalidImageException,
+    CancellationState,
+    DetectionCancelledException
 )
 from src.metrics import PerformanceTracker
 from src.io_validation import validate_inputs
@@ -111,7 +113,7 @@ class PatternDetector:
         variance_std_threshold: float = 5.0,
         context_margin_pct: float = 0.15,
         extractor_type: str = "auto",
-        cancellation_state: Any = None,
+        cancellation_state: Optional[CancellationState] = None,
     ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Hàm suy luận trung tâm của PatternDetector hỗ trợ đo đạc chi tiết và dọn dẹp graceful.
@@ -165,7 +167,7 @@ class PatternDetector:
                     self.tracker.start_stage(f"V1_Matching_{rotation_name}")
                     proposals = multiscale_template_match(
                         drawing_edge, tmpl_edge, threshold=v1_threshold, cancellation_state=cancellation_state
-                      )
+                    )
                     self.tracker.end_stage(f"V1_Matching_{rotation_name}")
 
                     for p in proposals:
@@ -356,6 +358,8 @@ class PatternDetector:
                 self.tracker.start_stage("BBox_Local_Refinement")
                 refined = []
                 for res in nms_results:
+                    if cancellation_state is not None:
+                        cancellation_state.check()
                     x, y, w, h = res["bbox"]
                     v_idx = res["variant_idx"]
                     best_t_edge = tmpl_edges[v_idx]
@@ -374,6 +378,10 @@ class PatternDetector:
 
             return nms_results, report
 
+        except DetectionCancelledException as e:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            raise e
         except Exception as e:
             self.clear()
             if isinstance(e, BOMDetectorException):
