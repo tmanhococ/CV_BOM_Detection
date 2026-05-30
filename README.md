@@ -78,35 +78,65 @@ pip install -r requirements.txt
 
 ## 🖥️ Hướng Dẫn Khởi Chạy Ứng Dụng Web Dashboard
 
-Khởi chạy máy chủ web cục bộ Gradio:
-```bash
-python src/app.py
-```
+Hệ thống cung cấp hai phương thức khởi chạy máy chủ web Gradio cục bộ:
+
+*   **Cách 1 (Khuyên dùng):** Khởi chạy tệp ở thư mục gốc (phương thức này đồng bộ hoàn toàn với môi trường HuggingFace):
+    ```bash
+    python app.py
+    ```
+*   **Cách 2:** Khởi chạy trực tiếp từ thư mục `src`:
+    ```bash
+    python src/app.py
+    ```
+
 Sau khi khởi chạy thành công, mở trình duyệt web và truy cập địa chỉ:
 👉 **`http://localhost:7860`**
 
 ### Các Bước Sử Dụng Trên Giao Diện:
-1. **Upload Input Images:**
-   - Kéo thả hoặc click để tải lên **Pattern Image** (Ảnh mẫu ký hiệu kỹ thuật cần tìm, ví dụ: hình van, hình mặt bích).
-   - Kéo thả hoặc click để tải lên **Drawing Image** (Bản vẽ CAD/BOM chính lớn chứa các ký hiệu cần nhận diện).
-2. **Parameters & Thresholds (Mở Accordion cấu hình):**
-   - *Pipeline Version:* Chọn `v3` (Hybrid - Khuyến nghị) để đạt độ chính xác cao nhất, hoặc `v1` nếu muốn chạy siêu nhanh.
-   - *Final Score NMS Threshold:* Ngưỡng lọc lọc trùng Soft-NMS (mặc định `0.75`).
-   - *V1/V2 Thresholds:* Các ngưỡng lọc ứng cử viên ban đầu và lọc cosine sâu của CNN.
-   - *Enable Local BBox Refinement:* Checkbox kích hoạt NCC tinh chỉnh cục bộ ±8px giúp các khung đỏ bám sát khít đường biên ký hiệu.
-   - *Feature Extractor:* Chọn `auto` (Hệ thống tự động dùng `resnet18` cho mẫu <56px và `dinov2` cho mẫu lớn hơn) hoặc chỉ định thủ công.
-3. **Chạy suy luận:**
-   - Click nút **⚡ Run Detection**.
-4. **Xem kết quả:**
-   - *Visualized Detections:* Ảnh bản vẽ hiển thị các hộp đỏ bám khít các ký hiệu được tìm thấy kèm nhãn góc xoay (`R0`, `R90`, `R180`, `R270`) và độ tin cậy.
-   - *Performance Dashboard:* Bảng thống kê tài nguyên thời gian thực hiển thị tổng thời gian thực thi, RAM tiêu thụ đỉnh, số lượng Proposals thô, và biểu đồ thanh thời lượng của từng Stage xử lý (Tiền xử lý, Khớp thô, Trích xuất đặc trưng, Fusion, Soft-NMS, v.v.).
-   - *Detailed Bounding Boxes JSON:* Danh sách tọa độ chi tiết `(x, y, w, h)`, độ tin cậy, góc xoay và tỷ lệ của từng đối tượng dạng JSON phục vụ tích hợp luồng nghiệp vụ tiếp theo.
+1.  **💡 Preset Sample Library (Thư viện mẫu sẵn có):**
+    *   Mở Accordion cấu hình nhanh này để chọn trực tiếp các mẫu ký hiệu vẽ hoặc bản vẽ mẫu từ thư viện ảnh cục bộ (nằm trong `./data/patterns/` và `./data/drawings/`).
+    *   Khi bạn chọn một tên tệp trong danh sách thả xuống, ảnh sẽ tự động được tải vào ô Upload của bạn mà không cần tải lên thủ công!
+2.  **Upload Input Images (Nếu không sử dụng Preset):**
+    *   Kéo thả hoặc click để tải lên **Pattern Image** (Ảnh mẫu ký hiệu cần tìm).
+    *   Kéo thả hoặc click để tải lên **Drawing Image** (Bản vẽ CAD/BOM chính chứa các ký hiệu cần nhận diện).
+3.  **Parameters & Thresholds (Accordion cấu hình thông số):**
+    *   *Pipeline Version:* Chọn `v3` (Hybrid - Khuyên dùng), `v2` (CNN), hoặc `v1` (NCC).
+    *   *Enable Local BBox Refinement:* Bật tính năng so khớp NCC biên cục bộ để tinh chỉnh khít biên đỏ bám sát nét vẽ.
+4.  **Chạy hoặc Huỷ suy luận:**
+    *   Click nút **⚡ Run Detection** để bắt đầu nhận diện.
+    *   Nếu bản vẽ quá lớn hoặc bạn phát hiện chọn sai tham số/sai mẫu vẽ, bạn có thể click nút **❌ Cancel** ngay bên cạnh để dừng tiến trình ngay lập tức. Hệ thống sẽ giải phóng hàng đợi UI và giải phóng bộ nhớ CUDA VRAM chủ động mà không làm mất ảnh đã tải lên.
+5.  **Xem kết quả:**
+    *   *Visualized Detections:* Ảnh bản vẽ hiển thị các hộp đỏ bám khít các ký hiệu được tìm thấy kèm nhãn góc xoay (`R0`, `R90`, `R180`, `R270`) và độ tin cậy.
+    *   *Performance Dashboard:* Bảng thống kê tài nguyên thời gian thực hiển thị tổng thời gian thực thi, RAM tiêu thụ đỉnh, số lượng Proposals thô, và biểu đồ thanh thời lượng của từng Stage xử lý.
+
+---
+
+## 🤗 Hướng Dẫn Deploy Lên HuggingFace Spaces
+
+Ứng dụng đã được tối ưu hóa hoàn toàn để triển khai trực tiếp lên HuggingFace Spaces chạy trực tuyến.
+
+### Các bước triển khai:
+1.  **Tạo một Gradio Space mới:**
+    *   Truy cập [HuggingFace Spaces](https://huggingface.co/spaces) và tạo một Space mới.
+    *   Chọn **SDK** là **Gradio**.
+2.  **Đẩy mã nguồn lên HuggingFace Space:**
+    *   Clone repository của Space mới tạo về máy của bạn hoặc cấu hình Git remote trỏ về Space đó.
+    *   Sao chép toàn bộ mã nguồn dự án vào thư mục Space, đảm bảo tệp chạy chính **`app.py` nằm ngay ở thư mục gốc (root)**.
+    *   Đẩy mã nguồn lên HuggingFace:
+        ```bash
+        git add app.py requirements.txt src/ data/
+        git commit -m "deploy: zero-shot bom detection pro"
+        git push origin main
+        ```
+3.  **Cơ chế hoạt động trực tuyến:**
+    *   HuggingFace sẽ tự động đọc tệp `requirements.txt` ở root để cài đặt các thư viện cần thiết.
+    *   Sau đó, hệ thống sẽ chạy lệnh `python app.py`. Vì tệp `app.py` cấu hình `server_name="0.0.0.0"` và lắng nghe trên cổng `7860`, Proxy của HuggingFace sẽ nhận diện ứng dụng của bạn và cấp phát đường dẫn HTTPS công khai truy cập trực tuyến cực kỳ mượt mà.
 
 ---
 
 ## 🧪 Hướng Dẫn Chạy Bộ Kiểm Thử Tự Động (Unit & Integration Tests)
 
-Hệ thống được phát triển theo quy trình Test-Driven Development (TDD) chặt chẽ. Để chạy toàn bộ **38 bài kiểm thử tự động** phủ khắp tất cả các thành phần:
+Hệ thống được phát triển theo quy trình Test-Driven Development (TDD) chặt chẽ. Dự án tích hợp bộ kiểm thử tự động gồm **45 bài kiểm thử** phủ khắp tất cả các thành phần:
 
 ```bash
 python -m pytest -v
@@ -121,6 +151,7 @@ python -m pytest tests/test_detector.py -v
 
 ## ⚙️ Các Tham Số Kỹ Thuật Đáng Lưu Ý
 
-* **Đồng bộ Polarity tự động:** Dù bản vẽ nền tối nét sáng hay nền sáng nét tối, hệ thống tự động phát hiện và đồng bộ về nền sáng nét tối để giải thuật khớp cạnh dilated hoạt động chuẩn xác nhất.
-* **Xử lý CPU Multithreading:** Mặc định hệ thống giới hạn luồng suy luận của OpenCV và PyTorch về 2 luồng trong `src/thread_config.py` để ngăn chặn hiện tượng nghẽn hoặc tranh chấp CPU trên HuggingFace Spaces hoặc máy chủ chia sẻ.
-* **Fallback an toàn mạng CNN:** Nếu DINOv2 tải về gặp lỗi mạng hoặc CUDA bị thiếu driver, hệ thống tự động fallback trơn tru xuống ResNet18 trên CPU mà không làm sập ứng dụng.
+*   **Bảo vệ Path Traversal:** Cơ chế presets dropdown được trang bị thuật toán kiểm soát an toàn đường dẫn tuyệt đối (CWE-22) giúp ngăn chặn bất kỳ nỗ lực tấn công đọc tệp hệ thống từ xa.
+*   **Tránh OOM và Leak RAM:** Nhờ Coarse NMS Pruning và custom `__deepcopy__` xử lý luồng Event, Gradio server được bảo vệ an toàn tối đa trước các lỗi treo hoặc cạn kiệt tài nguyên.
+*   **Xử lý CPU Multithreading:** Giới hạn luồng chạy tối ưu của PyTorch/OpenCV về 2 luồng trong `src/thread_config.py` để hoạt động trơn tru trên các máy chủ HuggingFace Spaces chia sẻ miễn phí mà không gây nghẽn CPU.
+*   **CNN Fallback thông minh:** Tự động fallback từ DINOv2 chạy trên GPU xuống ResNet18 chạy trên CPU nếu thiết bị không hỗ trợ CUDA hoặc gặp lỗi tải mạng.
