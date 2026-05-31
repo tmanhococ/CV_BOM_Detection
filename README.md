@@ -1,4 +1,17 @@
+---
+title: CV BOM Detection
+emoji: 🎯
+colorFrom: blue
+colorTo: green
+sdk: gradio
+sdk_version: 4.31.0
+app_file: app.py
+pinned: false
+python_version: "3.10"
+---
+
 # 🎯 Zero-Shot BOM Pattern Detection System
+
 
 Hệ thống phát hiện ký hiệu kỹ thuật tự động trên bản vẽ CAD/BOM có độ phân giải lớn (Zero-Shot) sử dụng pipeline tích hợp 3 chế độ (V1 Baseline, V2 Deep Learning, V3 Hybrid) với đầy đủ cơ chế đo metrics hiệu năng, xử lý ngoại lệ và fallback thông minh.
 
