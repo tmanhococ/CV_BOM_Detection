@@ -237,7 +237,7 @@ def cancel_inference(state: CancellationState) -> None:
         state.cancel()
 
 with gr.Blocks(title="Zero-Shot BOM Pattern Detector Pro") as demo:
-    state_helper = gr.State(value=CancellationState())
+    state_helper = gr.State(value=lambda: CancellationState())
     gr.Markdown(
         """
         # 🎯 Zero-Shot BOM Pattern Detector Pro
@@ -258,15 +258,15 @@ with gr.Blocks(title="Zero-Shot BOM Pattern Detector Pro") as demo:
             
             with gr.Accordion("⚙️ Parameters & Thresholds", open=False):
                 mode_input = gr.Radio(["v1", "v2", "v3"], label="Pipeline Version", value="v3")
-                conf_input = gr.Slider(0.1, 1.0, value=0.75, step=0.05, label="Final Score NMS Threshold")
-                v1_input = gr.Slider(0.1, 1.0, value=0.50, step=0.05, label="V1 Matching Threshold")
+                conf_input = gr.Slider(0.1, 1.0, value=0.80, step=0.05, label="Final Score NMS Threshold")
+                v1_input = gr.Slider(0.1, 1.0, value=0.80, step=0.05, label="V1 Matching Threshold")
                 v2_input = gr.Slider(0.5, 1.0, value=0.80, step=0.05, label="V2 CNN Cosine Threshold")
                 alpha_input = gr.Slider(0.0, 1.0, value=0.30, step=0.05, label="Fusion Weight Alpha (V1 vs V2)")
                 iou_input = gr.Slider(0.1, 0.9, value=0.30, step=0.05, label="NMS IoU Threshold")
-                refine_input = gr.Checkbox(label="Enable Local BBox Refinement (NCC local search)", value=False)
+                refine_input = gr.Checkbox(label="Enable Local BBox Refinement (NCC local search)", value=True)
                 var_input = gr.Slider(1.0, 20.0, value=5.0, step=0.5, label="Variance Filter Threshold (Lọc vùng trắng)")
-                margin_input = gr.Slider(0.0, 0.50, value=0.15, step=0.05, label="Context Margin Padding (CNN)")
-                extractor_input = gr.Dropdown(["auto", "resnet18", "dinov2"], label="Feature Extractor", value="auto")
+                margin_input = gr.Slider(0.0, 0.50, value=0.05, step=0.05, label="Context Margin Padding (CNN)")
+                extractor_input = gr.Dropdown(["auto", "resnet18", "dinov2"], label="Feature Extractor", value="dinov2")
                 
             with gr.Row():
                 run_btn = gr.Button("⚡ Run Detection", variant="primary", scale=2)

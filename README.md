@@ -1,6 +1,6 @@
 ---
 title: CV BOM Detection
-emoji: 🎯
+emoji: 
 colorFrom: blue
 colorTo: green
 sdk: gradio
@@ -10,7 +10,7 @@ pinned: false
 python_version: "3.10"
 ---
 
-# 🎯 Zero-Shot BOM Pattern Detection System
+# Zero-Shot BOM Pattern Detection System
 
 
 Hệ thống phát hiện ký hiệu kỹ thuật tự động trên bản vẽ CAD/BOM có độ phân giải lớn (Zero-Shot) sử dụng pipeline tích hợp 3 chế độ (V1 Baseline, V2 Deep Learning, V3 Hybrid) với đầy đủ cơ chế đo metrics hiệu năng, xử lý ngoại lệ và fallback thông minh.
@@ -19,7 +19,7 @@ Hệ thống được phát triển với tính năng bảo vệ bộ nhớ RAM/
 
 ---
 
-## 🚀 Các Tính Năng Đột Phá
+## Các Tính Năng Đột Phá
 
 1. **Pipeline 3 Chế Độ Linh Hoạt (Multi-Engine Pipeline):**
    - **V1 Baseline (Coarse):** Giải thuật so khớp mẫu đa tỷ lệ NCC (Pearson Normalized Cross-Correlation) trên Bản đồ Cạnh Giãn Nở (Dilated Edge Map).
@@ -36,7 +36,7 @@ Hệ thống được phát triển với tính năng bảo vệ bộ nhớ RAM/
 
 ---
 
-## 📁 Cấu Trúc Thư Mục Dự Án
+## Cấu Trúc Thư Mục Dự Án
 
 ```text
 CV_BOM_Detection/
@@ -66,7 +66,7 @@ CV_BOM_Detection/
 
 ---
 
-## 🛠️ Hướng Dẫn Cài Đặt Môi Trường
+## Hướng Dẫn Cài Đặt Môi Trường
 
 ### Bước 1: Clone dự án và truy cập thư mục gốc
 Mở PowerShell hoặc Command Prompt trong thư mục của dự án:
@@ -89,7 +89,7 @@ pip install -r requirements.txt
 
 ---
 
-## 🖥️ Hướng Dẫn Khởi Chạy Ứng Dụng Web Dashboard
+## Hướng Dẫn Khởi Chạy Ứng Dụng Web Dashboard
 
 Hệ thống cung cấp hai phương thức khởi chạy máy chủ web Gradio cục bộ:
 
@@ -103,10 +103,10 @@ Hệ thống cung cấp hai phương thức khởi chạy máy chủ web Gradio 
     ```
 
 Sau khi khởi chạy thành công, mở trình duyệt web và truy cập địa chỉ:
-👉 **`http://localhost:7860`**
+**`http://localhost:7860`**
 
 ### Các Bước Sử Dụng Trên Giao Diện:
-1.  **💡 Preset Sample Library (Thư viện mẫu sẵn có):**
+1.  **Preset Sample Library (Thư viện mẫu sẵn có):**
     *   Mở Accordion cấu hình nhanh này để chọn trực tiếp các mẫu ký hiệu vẽ hoặc bản vẽ mẫu từ thư viện ảnh cục bộ (nằm trong `./data/patterns/` và `./data/drawings/`).
     *   Khi bạn chọn một tên tệp trong danh sách thả xuống, ảnh sẽ tự động được tải vào ô Upload của bạn mà không cần tải lên thủ công!
 2.  **Upload Input Images (Nếu không sử dụng Preset):**
@@ -116,15 +116,15 @@ Sau khi khởi chạy thành công, mở trình duyệt web và truy cập đị
     *   *Pipeline Version:* Chọn `v3` (Hybrid - Khuyên dùng), `v2` (CNN), hoặc `v1` (NCC).
     *   *Enable Local BBox Refinement:* Bật tính năng so khớp NCC biên cục bộ để tinh chỉnh khít biên đỏ bám sát nét vẽ.
 4.  **Chạy hoặc Huỷ suy luận:**
-    *   Click nút **⚡ Run Detection** để bắt đầu nhận diện.
-    *   Nếu bản vẽ quá lớn hoặc bạn phát hiện chọn sai tham số/sai mẫu vẽ, bạn có thể click nút **❌ Cancel** ngay bên cạnh để dừng tiến trình ngay lập tức. Hệ thống sẽ giải phóng hàng đợi UI và giải phóng bộ nhớ CUDA VRAM chủ động mà không làm mất ảnh đã tải lên.
+    *   Click nút **Run Detection** để bắt đầu nhận diện.
+    *   Nếu bản vẽ quá lớn hoặc bạn phát hiện chọn sai tham số/sai mẫu vẽ, bạn có thể click nút **Cancel** ngay bên cạnh để dừng tiến trình ngay lập tức. Hệ thống sẽ giải phóng hàng đợi UI và giải phóng bộ nhớ CUDA VRAM chủ động mà không làm mất ảnh đã tải lên.
 5.  **Xem kết quả:**
     *   *Visualized Detections:* Ảnh bản vẽ hiển thị các hộp đỏ bám khít các ký hiệu được tìm thấy kèm nhãn góc xoay (`R0`, `R90`, `R180`, `R270`) và độ tin cậy.
     *   *Performance Dashboard:* Bảng thống kê tài nguyên thời gian thực hiển thị tổng thời gian thực thi, RAM tiêu thụ đỉnh, số lượng Proposals thô, và biểu đồ thanh thời lượng của từng Stage xử lý.
 
 ---
 
-## 🤗 Hướng Dẫn Deploy Lên HuggingFace Spaces
+## Hướng Dẫn Deploy Lên HuggingFace Spaces
 
 Ứng dụng đã được tối ưu hóa hoàn toàn để triển khai trực tiếp lên HuggingFace Spaces chạy trực tuyến.
 
@@ -147,7 +147,7 @@ Sau khi khởi chạy thành công, mở trình duyệt web và truy cập đị
 
 ---
 
-## 🧪 Hướng Dẫn Chạy Bộ Kiểm Thử Tự Động (Unit & Integration Tests)
+## Hướng Dẫn Chạy Bộ Kiểm Thử Tự Động (Unit & Integration Tests)
 
 Hệ thống được phát triển theo quy trình Test-Driven Development (TDD) chặt chẽ. Dự án tích hợp bộ kiểm thử tự động gồm **45 bài kiểm thử** phủ khắp tất cả các thành phần:
 
@@ -162,7 +162,7 @@ python -m pytest tests/test_detector.py -v
 
 ---
 
-## ⚙️ Các Tham Số Kỹ Thuật Đáng Lưu Ý
+## Các Tham Số Kỹ Thuật Đáng Lưu Ý
 
 *   **Bảo vệ Path Traversal:** Cơ chế presets dropdown được trang bị thuật toán kiểm soát an toàn đường dẫn tuyệt đối (CWE-22) giúp ngăn chặn bất kỳ nỗ lực tấn công đọc tệp hệ thống từ xa.
 *   **Tránh OOM và Leak RAM:** Nhờ Coarse NMS Pruning và custom `__deepcopy__` xử lý luồng Event, Gradio server được bảo vệ an toàn tối đa trước các lỗi treo hoặc cạn kiệt tài nguyên.
