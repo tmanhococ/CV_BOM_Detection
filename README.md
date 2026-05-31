@@ -17,6 +17,8 @@ Hệ thống phát hiện ký hiệu kỹ thuật tự động trên bản vẽ 
 
 Hệ thống được phát triển với tính năng bảo vệ bộ nhớ RAM/VRAM vượt bậc (Coarse NMS Pruning) và cơ chế Caching List-Based cho phép nhận diện song song nhiều ký hiệu đồng thời mà không bị xung đột.
 
+Để tìm hiểu chi tiết về kiến trúc hệ thống, sơ đồ thiết kế và đặc tả kỹ thuật cấp hàm, vui lòng xem [Tài liệu Đặc tả Kỹ thuật (SPECIFICATION.md)](SPECIFICATION.md).
+
 ---
 
 ## Các Tính Năng Đột Phá
