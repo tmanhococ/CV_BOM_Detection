@@ -158,6 +158,9 @@ Sau khi khởi chạy thành công, mở trình duyệt web và truy cập đị
 
 ## Hướng Dẫn Deploy Lên HuggingFace Spaces
 
+Hệ thống đã được deploy chạy trực tuyến hoàn toàn miễn phí trên HuggingFace Spaces. Bạn có thể sử dụng và thử nghiệm trực tiếp tại đường dẫn sau:
+**[HuggingFace Spaces Demo (https://tmanhococ-bom-detection.hf.space)](https://tmanhococ-bom-detection.hf.space)**
+
 Ứng dụng đã được tối ưu hóa hoàn toàn để triển khai trực tiếp lên HuggingFace Spaces chạy trực tuyến.
 
 ### Các bước triển khai:

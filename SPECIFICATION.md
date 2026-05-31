@@ -717,7 +717,8 @@ Nếu có thêm thời gian phát triển, các giải pháp nâng cao hiệu n�
 
 ### 7.1. Triển khai Hugging Face Spaces & Demo Interface
 
-Hệ thống đã được đóng gói hoàn chỉnh và triển khai thành công lên **Hugging Face Spaces** tại địa chỉ public. 
+Hệ thống đã được đóng gói hoàn chỉnh và triển khai thành công lên **Hugging Face Spaces** tại địa chỉ public:
+**[Hugging Face Spaces Demo (https://tmanhococ-bom-detection.hf.space)](https://tmanhococ-bom-detection.hf.space)**
 
 Giao diện trực quan được xây dựng bằng thư viện Gradio cao cấp, hỗ trợ cơ chế kéo thả hình ảnh (Drag & Drop), hiển thị Dashboard tài nguyên thời gian thực và trả về kết quả định dạng chuẩn tương tác JSON.
 
