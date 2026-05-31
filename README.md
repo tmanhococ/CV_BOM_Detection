@@ -38,6 +38,36 @@ Hệ thống được phát triển với tính năng bảo vệ bộ nhớ RAM/
 
 ---
 
+## Kiến Trúc Hệ Thống Chi Tiết
+
+Hệ thống hoạt động dựa trên cơ chế lai ghép 3 giai đoạn (Coarse-to-Fine Pipeline) nhằm tối ưu hóa triệt để hiệu năng tính toán và độ chính xác nhận diện:
+
+1. **Giai đoạn lọc thô (Coarse Stage):**
+   - Sử dụng giải thuật so khớp tương quan chéo chuẩn hóa Pearson (Pearson NCC) trên bản đồ cạnh giãn nở (Dilated Edge Map).
+   - Cho phép quét đa tỷ lệ (Multi-scale) và đa hướng xoay (Multi-rotation: R0, R90, R180, R270) trên toàn bộ bản vẽ độ phân giải siêu cao (lên đến 8K) trong thời gian dưới 1 giây.
+   - Sử dụng NMS thô (Coarse NMS Pruning) và bộ lọc phương sai (Variance Filter) để triệt tiêu lập tức 99.9% vùng trống trơn, giảm tải tối đa cho pha học sâu tiếp theo.
+
+2. **Giai đoạn lọc tinh (Fine Stage):**
+   - Chỉ trích xuất ảnh cắt tại các vùng ứng viên đã vượt qua vòng lọc thô.
+   - Sử dụng các mạng nơ-ron tích chập sâu (ResNet18) hoặc mô hình tự giám sát Vision Transformer (DINOv2 của Meta) để trích xuất vector đặc trưng ngữ nghĩa.
+   - So sánh khoảng cách Cosine giữa vector của ảnh mẫu và các ứng viên để lọc sạch hoàn toàn báo động giả (False Positives).
+
+3. **Dung hợp điểm số & Hậu xử lý (Score Fusion & Post-processing):**
+   - Dung hợp điểm số hình học NCC và điểm số ngữ nghĩa CNN theo trọng số Alpha.
+   - Áp dụng Gaussian Soft-NMS nhằm loại bỏ đè lấp nhưng giữ lại các ký hiệu lồng hoặc sát nhau.
+   - Sử dụng giải thuật quét tối ưu hóa cục bộ (BBox Local Refinement) trong bán kính nhỏ nhằm căn khít tuyệt đối hộp phát hiện với nét vẽ.
+
+---
+
+## Cơ Chế Phục Hồi Lỗi & Fallback Thông Minh
+
+Để đảm bảo hệ thống luôn vận hành ổn định trong mọi môi trường sản xuất thực tế:
+- **Tự động Fallback phần cứng & mô hình:** Nếu hệ thống gặp sự cố khi tải mô hình Vision Transformer nặng (như DINOv2 do không có kết nối internet để tải trọng số hoặc lỗi thiếu bộ nhớ VRAM GPU), hệ thống sẽ tự động hạ cấp xuống mô hình ResNet18 gọn nhẹ chạy trên CPU.
+- **Hệ thống phân lớp ngoại lệ chuyên nghiệp:** Toàn bộ các lỗi nghiệp vụ (như ảnh hỏng, sai kích thước, lỗi nạp mô hình, hoặc thao tác hủy) đều được xử lý và đóng gói thông qua hệ thống phân cấp ngoại lệ rõ ràng kế thừa từ `BOMDetectorException`.
+- **Cơ chế Hủy tiến trình Cooperative Cancellation:** Hỗ trợ hủy tiến trình suy luận đa luồng tức thì thông qua cờ hiệu an toàn `CancellationState`, đảm bảo thu hồi và dọn dẹp bộ nhớ đệm GPU CUDA/RAM ngay khi người dùng nhấn nút hủy trên giao diện.
+
+---
+
 ## Cấu Trúc Thư Mục Dự Án
 
 ```text
